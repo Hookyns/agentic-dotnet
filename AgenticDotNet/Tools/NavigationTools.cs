@@ -49,8 +49,12 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 		if (compilation is null)
 			return "Could not compile project.";
 
+		var sourcePaths = compilation.SyntaxTrees
+			.Select(t => t.FilePath)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
 		var namespaces = new SortedSet<string>();
-		CollectNamespaces(compilation.GlobalNamespace, namespaces);
+		CollectNamespaces(compilation.GlobalNamespace, namespaces, sourcePaths);
 		return JsonSerializer.Serialize(namespaces, JsonOptions.Options);
 	}
 
@@ -218,12 +222,15 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 		);
 	}
 
-	private static void CollectNamespaces(INamespaceSymbol ns, SortedSet<string> result)
+	private static void CollectNamespaces(INamespaceSymbol ns, SortedSet<string> result, HashSet<string> sourcePaths)
 	{
-		if (!ns.IsGlobalNamespace)
+		if (!ns.IsGlobalNamespace && ns.GetTypeMembers().Any(t =>
+			t.Locations.Any(l => l.IsInSource && sourcePaths.Contains(l.SourceTree?.FilePath ?? ""))))
+		{
 			result.Add(ns.ToDisplayString());
+		}
 		foreach (var child in ns.GetNamespaceMembers())
-			CollectNamespaces(child, result);
+			CollectNamespaces(child, result, sourcePaths);
 	}
 
 	private static INamespaceSymbol? ResolveNamespace(INamespaceSymbol root, string name)
