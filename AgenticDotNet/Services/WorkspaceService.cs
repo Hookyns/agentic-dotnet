@@ -12,7 +12,7 @@ namespace AgenticDotNet.Services;
 /// Every call to GetSolutionAsync refreshes any files that changed on disk since the
 /// last call, so Roslyn's incremental compilation only re-parses what is actually new.
 /// </summary>
-public sealed class WorkspaceService : IDisposable
+internal sealed class WorkspaceService : IDisposable
 {
     private static readonly Lazy<ImmutableArray<Assembly>> SMefAssemblies = new(
         BuildMefAssemblies,

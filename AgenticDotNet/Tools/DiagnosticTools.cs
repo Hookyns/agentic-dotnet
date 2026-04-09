@@ -10,7 +10,7 @@ using ModelContextProtocol.Server;
 namespace AgenticDotNet.Tools;
 
 [McpServerToolType]
-public sealed class DiagnosticTools(WorkspaceService workspace)
+internal sealed class DiagnosticTools(WorkspaceService workspace)
 {
 	[McpServerTool(Name = "get_diagnostics")]
 	[Description(
@@ -49,12 +49,22 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 				if (tree is null)
 					continue;
 
-				diagnostics = await GetAllDiagnosticsAsync(compilation, analyzers, cancellationToken);
+				diagnostics = await GetAllDiagnosticsAsync(
+					compilation,
+					analyzers,
+					project.AnalyzerOptions,
+					cancellationToken
+				);
 				diagnostics = diagnostics.Where(d => d.Location.SourceTree == tree);
 			}
 			else
 			{
-				diagnostics = await GetAllDiagnosticsAsync(compilation, analyzers, cancellationToken);
+				diagnostics = await GetAllDiagnosticsAsync(
+					compilation,
+					analyzers,
+					project.AnalyzerOptions,
+					cancellationToken
+				);
 				diagnostics = diagnostics.Where(d =>
 					d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning
 				);
@@ -110,6 +120,7 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 	private static async Task<IEnumerable<Diagnostic>> GetAllDiagnosticsAsync(
 		Compilation compilation,
 		ImmutableArray<DiagnosticAnalyzer> analyzers,
+		AnalyzerOptions analyzerOptions,
 		CancellationToken ct
 	)
 	{
@@ -119,8 +130,9 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 		if (analyzers.IsEmpty)
 			return compilerDiagnostics;
 
-		// Run project's own analyzers (CA*, IDE*, custom) on top of compilation.
-		var withAnalyzers = compilation.WithAnalyzers(analyzers, options: null);
+		// Pass project.AnalyzerOptions so analyzers see .editorconfig severity overrides,
+		// code-style settings, and any additional files (e.g. stylecop.json).
+		var withAnalyzers = compilation.WithAnalyzers(analyzers, analyzerOptions);
 		var analyzerDiagnostics = await withAnalyzers.GetAnalyzerDiagnosticsAsync(ct);
 
 		return compilerDiagnostics.Concat(analyzerDiagnostics);
@@ -134,23 +146,27 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 		Project project,
 		Compilation compilation,
 		string filePath,
-		CancellationToken ct)
+		CancellationToken ct
+	)
 	{
 		// Regular documents.
 		var doc = project.Documents.FirstOrDefault(d =>
-			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase)
+		);
 		if (doc is not null)
 			return await doc.GetSyntaxTreeAsync(ct);
 
 		// Source-generated documents (no on-disk path in general, but some generators do set one).
 		var generatedDocs = await project.GetSourceGeneratedDocumentsAsync(ct);
 		var generatedDoc = generatedDocs.FirstOrDefault(d =>
-			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase)
+		);
 		if (generatedDoc is not null)
 			return await generatedDoc.GetSyntaxTreeAsync(ct);
 
 		// Fall back: match by file name inside the compilation's syntax trees directly.
 		return compilation.SyntaxTrees.FirstOrDefault(t =>
-			string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+			string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase)
+		);
 	}
 }

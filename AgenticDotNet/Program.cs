@@ -11,7 +11,7 @@ MSBuildLocator.RegisterDefaults();
 
 if (args.Length == 0)
 {
-	await Console.Error.WriteLineAsync("Usage: RoslynMcpServer <path-to-solution.sln|.slnx>");
+	await Console.Error.WriteLineAsync("Usage: agentic <path-to-solution.sln|.slnx>");
 	return 1;
 }
 
