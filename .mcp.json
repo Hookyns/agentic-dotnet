@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"agentic-dotnet": {
+			"command": "dotnet",
+			"args": ["agentic", "./AgenticDotNet.slnx"]
+		}
+	}
+}

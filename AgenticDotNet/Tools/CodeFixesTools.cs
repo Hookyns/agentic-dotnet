@@ -11,6 +11,7 @@ using ModelContextProtocol.Server;
 
 namespace AgenticDotNet.Tools;
 
+[McpServerToolType]
 internal sealed class CodeFixesTools(WorkspaceService workspace)
 {
 	// Reflection-based provider discovery — works for providers with parameterless ctors.

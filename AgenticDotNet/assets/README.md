@@ -34,7 +34,7 @@ Global install:
 ```json
 {
   "mcpServers": {
-    "dotnet": {
+    "agentic-dotnet": {
       "command": "agentic",
       "args": ["/absolute/path/to/MySolution.sln"]
     }
@@ -46,7 +46,7 @@ Per-project install (prefix with `dotnet`):
 ```json
 {
   "mcpServers": {
-    "dotnet": {
+    "agentic-dotnet": {
       "command": "dotnet",
       "args": ["agentic", "/absolute/path/to/MySolution.sln"]
     }

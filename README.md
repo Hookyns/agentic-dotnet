@@ -50,7 +50,7 @@ Global install:
 ```json
 {
   "mcpServers": {
-    "dotnet": {
+    "agentic-dotnet": {
       "command": "agentic",
       "args": ["C:/Work/MyProject/MyProject.sln"]
     }
@@ -62,7 +62,7 @@ Local (per-project) install — run `dotnet tool restore` first:
 ```json
 {
   "mcpServers": {
-    "dotnet": {
+    "agentic-dotnet": {
       "command": "dotnet",
       "args": ["agentic", "C:/Work/MyProject/MyProject.sln"]
     }

@@ -1,0 +1,17 @@
+{
+	"permissions": {
+		"allow": [
+			"Read(~/**/*.csproj)",
+			"Read(~/**/*.cs)",
+			"mcp__agentic-dotnet__get_solution_projects",
+			"mcp__agentic-dotnet__get_project_namespaces",
+			"mcp__agentic-dotnet__get_types_in_namespace",
+			"mcp__agentic-dotnet__get_type_info"
+		],
+		"deny": [
+			"Read(~/**/.env)"
+		]
+	},
+	"enabledMcpjsonServers": [
+	]
+}
