@@ -144,6 +144,7 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 			IsSealed = type.IsSealed,
 			IsStatic = type.IsStatic,
 			IsGeneric = type.IsGenericType,
+			Attributes = FormatAttributes(type.GetAttributes()),
 			TypeParameters = type
 				.TypeParameters.Select(tp => new
 				{
@@ -177,6 +178,7 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 					IsAbstract = p.IsAbstract,
 					IsVirtual = p.IsVirtual,
 					IsOverride = p.IsOverride,
+					Attributes = FormatAttributes(p.GetAttributes()),
 				})
 				.ToArray(),
 			Fields = type.GetMembers()
@@ -192,6 +194,7 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 					IsReadOnly = f.IsReadOnly,
 					IsConst = f.IsConst,
 					ConstantValue = f.IsConst ? f.ConstantValue?.ToString() : null,
+					Attributes = FormatAttributes(f.GetAttributes()),
 				})
 				.ToArray(),
 			Events = type.GetMembers()
@@ -205,6 +208,7 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 					IsStatic = e.IsStatic,
 					IsAbstract = e.IsAbstract,
 					IsVirtual = e.IsVirtual,
+					Attributes = FormatAttributes(e.GetAttributes()),
 				})
 				.ToArray(),
 		};
@@ -248,7 +252,12 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 	}
 
 	private static object FormatConstructor(IMethodSymbol ctor) =>
-		new { Accessibility = ctor.DeclaredAccessibility.ToString(), Parameters = FormatParameters(ctor.Parameters) };
+		new
+		{
+			Accessibility = ctor.DeclaredAccessibility.ToString(),
+			Attributes = FormatAttributes(ctor.GetAttributes()),
+			Parameters = FormatParameters(ctor.Parameters),
+		};
 
 	private static object FormatMethod(IMethodSymbol m) =>
 		new
@@ -264,6 +273,7 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 			IsOverride = m.IsOverride,
 			IsAsync = m.IsAsync,
 			IsExtensionMethod = m.IsExtensionMethod,
+			Attributes = FormatAttributes(m.GetAttributes()),
 		};
 
 	private static object[] FormatParameters(System.Collections.Immutable.ImmutableArray<IParameterSymbol> ps) =>
@@ -275,9 +285,23 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 					IsParams = p.IsParams,
 					IsOptional = p.IsOptional,
 					DefaultValue = p.HasExplicitDefaultValue ? p.ExplicitDefaultValue?.ToString() : null,
+					Attributes = FormatAttributes(p.GetAttributes()),
 				} as object
 			)
 			.ToArray();
+
+	private static object[] FormatAttributes(System.Collections.Immutable.ImmutableArray<AttributeData> attrs) =>
+		attrs.Select(a => new
+			{
+				Name = a.AttributeClass?.ToDisplayString(),
+				ConstructorArguments = a.ConstructorArguments
+					.Select(arg => arg.Kind == TypedConstantKind.Array
+						? (object?)arg.Values.Select(v => v.Value).ToArray()
+						: arg.Value)
+					.ToArray(),
+				NamedArguments = a.NamedArguments.ToDictionary(kv => kv.Key, kv => kv.Value.Value),
+			} as object)
+		.ToArray();
 
 	private static string BuildAccessorString(IPropertySymbol p)
 	{
