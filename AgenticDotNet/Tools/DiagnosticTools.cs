@@ -45,11 +45,9 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 
 			if (filePath is not null)
 			{
-				var doc = FindDocument(project, filePath);
-				if (doc is null)
+				var tree = await FindSyntaxTreeAsync(project, compilation, filePath, cancellationToken);
+				if (tree is null)
 					continue;
-
-				var tree = await doc.GetSyntaxTreeAsync(cancellationToken);
 
 				diagnostics = await GetAllDiagnosticsAsync(compilation, analyzers, cancellationToken);
 				diagnostics = diagnostics.Where(d => d.Location.SourceTree == tree);
@@ -128,6 +126,31 @@ public sealed class DiagnosticTools(WorkspaceService workspace)
 		return compilerDiagnostics.Concat(analyzerDiagnostics);
 	}
 
-	private static Document? FindDocument(Project project, string filePath) =>
-		project.Documents.FirstOrDefault(d => string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+	/// <summary>
+	/// Returns the syntax tree for <paramref name="filePath"/> from either regular documents
+	/// or source-generated documents (which live in a separate collection).
+	/// </summary>
+	private static async Task<SyntaxTree?> FindSyntaxTreeAsync(
+		Project project,
+		Compilation compilation,
+		string filePath,
+		CancellationToken ct)
+	{
+		// Regular documents.
+		var doc = project.Documents.FirstOrDefault(d =>
+			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+		if (doc is not null)
+			return await doc.GetSyntaxTreeAsync(ct);
+
+		// Source-generated documents (no on-disk path in general, but some generators do set one).
+		var generatedDocs = await project.GetSourceGeneratedDocumentsAsync(ct);
+		var generatedDoc = generatedDocs.FirstOrDefault(d =>
+			string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+		if (generatedDoc is not null)
+			return await generatedDoc.GetSyntaxTreeAsync(ct);
+
+		// Fall back: match by file name inside the compilation's syntax trees directly.
+		return compilation.SyntaxTrees.FirstOrDefault(t =>
+			string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+	}
 }
