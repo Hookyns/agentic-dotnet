@@ -12,7 +12,7 @@
 		<PackAsTool>true</PackAsTool>
 		<ToolCommandName>agentic</ToolCommandName>
 		<PackageId>AgenticDotNet</PackageId>
-		<Version>1.0.0</Version>
+		<Version>0.1.0</Version>
 		<Description>Roslyn-powered MCP server that exposes diagnostics, navigation, and refactoring tools for a .NET solution.</Description>
 		<PackageTags>agentic coding ai mcp server tool roslyn diagnostics codefixes code fixes</PackageTags>
 		<Authors>Roman Jámbor</Authors>
