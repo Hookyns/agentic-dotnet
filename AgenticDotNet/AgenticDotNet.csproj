@@ -8,6 +8,8 @@
     <!-- Suppress MSBuild noise that would corrupt MCP stdio -->
     <!--    <NoWarn>$(NoWarn);NU1701</NoWarn>-->
     <WarningsAsErrors>nullable</WarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
   </PropertyGroup>
   <ItemGroup>
     <!-- MCP stdio server -->

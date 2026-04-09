@@ -1,10 +1,10 @@
 using System.ComponentModel;
 using System.Text.Json;
+using AgenticDotNet.Services;
 using Microsoft.CodeAnalysis;
 using ModelContextProtocol.Server;
-using RoslynMcpServer.Services;
 
-namespace RoslynMcpServer.Tools;
+namespace AgenticDotNet.Tools;
 
 [McpServerToolType]
 public sealed class NavigationTools(WorkspaceService workspace)

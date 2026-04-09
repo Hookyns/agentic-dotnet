@@ -1,13 +1,13 @@
 using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Text.Json;
+using AgenticDotNet.Services;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using ModelContextProtocol.Server;
-using RoslynMcpServer.Services;
 
-namespace RoslynMcpServer.Tools;
+namespace AgenticDotNet.Tools;
 
 public sealed class CodeFixesTools(WorkspaceService workspace)
 {

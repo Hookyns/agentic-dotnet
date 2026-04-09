@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.Text;
 
-namespace RoslynMcpServer.Services;
+namespace AgenticDotNet.Services;
 
 /// <summary>
 /// Manages a single MSBuildWorkspace for the solution path supplied at startup.
@@ -27,8 +27,15 @@ public sealed class WorkspaceService : IDisposable
 
     private MSBuildWorkspace? _workspace;
     private Solution? _solution;
+    private readonly List<string> _workspaceFailures = [];
 
     public WorkspaceService(string solutionPath) => _solutionPath = solutionPath;
+
+    /// <summary>
+    /// Workspace diagnostic failures accumulated since the last OpenAsync call.
+    /// These are MSBuild evaluation errors, missing SDK, unsupported project types, etc.
+    /// </summary>
+    public IReadOnlyList<string> WorkspaceFailures => _workspaceFailures;
 
     /// <summary>
     /// Returns an up-to-date Solution. On the first call the workspace is opened from disk.
@@ -57,10 +64,14 @@ public sealed class WorkspaceService : IDisposable
     {
         _workspace?.Dispose();
         var hostServices = MefHostServices.Create(SMefAssemblies.Value);
+        _workspaceFailures.Clear();
         _workspace = MSBuildWorkspace.Create(hostServices);
         _workspace.RegisterWorkspaceFailedHandler(e =>
-            Console.Error.WriteLine($"[workspace:{e.Diagnostic.Kind}] {e.Diagnostic.Message}")
-        );
+        {
+            var msg = $"[{e.Diagnostic.Kind}] {e.Diagnostic.Message}";
+            _workspaceFailures.Add(msg);
+            Console.Error.WriteLine($"[workspace] {msg}");
+        });
 
         _solution = await _workspace.OpenSolutionAsync(_solutionPath, cancellationToken: ct);
 

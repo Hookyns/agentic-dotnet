@@ -1,0 +1,87 @@
+root = true
+
+[*]
+charset = utf-8
+indent_size = 4
+tab_width = 4
+indent_style = tab
+end_of_line = lf
+max_line_length = 120
+trim_trailing_whitespace = true
+
+[*.cs]
+# IDE0161: Use file-scoped namespace
+csharp_style_namespace_declarations=file_scoped:suggestion
+
+# CS8509: The switch expression does not handle all possible values of its input type (it is not exhaustive)
+dotnet_diagnostic.CS8509.severity = error
+
+# S1135: Track uses of "TODO" tags
+dotnet_diagnostic.S1135.severity = warning
+
+# IDE0005: Remove unnecessary usings
+dotnet_diagnostic.IDE0005.severity = warning
+
+# S1144: Unused private types or members should be removed; duplicit with CA1823: Avoid uninstantiated internal classes
+dotnet_diagnostic.S1144.severity = suggestion
+
+# CA1848: Use LoggerMessage delegate to define logging messages
+dotnet_diagnostic.CA1848.severity = suggestion
+
+# CA1034: Nested types should not be visible
+dotnet_diagnostic.CA1034.severity = suggestion
+
+# CA1303: Do not pass literals as localized parameters
+dotnet_diagnostic.CA1303.severity = suggestion
+
+# CA1812: Avoid uninstantiated internal classes
+dotnet_diagnostic.CA1812.severity = suggestion
+
+# S1118: Utility classes should not have public constructors
+dotnet_diagnostic.S1118.severity = suggestion
+
+# S2365: Refactor property into a method - properties should not copy collections
+dotnet_diagnostic.S2365.severity = suggestion
+
+# CA1822, S2325: Mark members as static
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# S2325: Mark members as static
+dotnet_diagnostic.S2325.severity = suggestion
+
+# CA1040: Avoid empty interfaces
+dotnet_diagnostic.CA1040.severity = none
+
+# CA2007: Do not directly await a Task without calling ConfigureAwait
+dotnet_diagnostic.CA2007.severity = silent
+
+# CA1056: Uri properties should not be strings
+dotnet_diagnostic.CA1056.severity = none
+
+# CA1008: Enums should have zero value
+dotnet_diagnostic.CA1008.severity = none
+
+# CA1716: Identifiers should not match keywords
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1308: Normalize strings to uppercase
+dotnet_diagnostic.CA1308.severity = none
+
+# CA1810: Initialize reference type static fields inline
+dotnet_diagnostic.CA1810.severity = none
+
+# S125: Sections of code should not be commented out
+dotnet_diagnostic.S125.severity = none
+
+# S1075: URIs should not be hardcoded
+dotnet_diagnostic.S1075.severity = none
+
+# S2094: Classes should not be empty
+dotnet_diagnostic.S2094.severity = none
+
+# S3267: Loops should be simplified with "LINQ" expressions
+dotnet_diagnostic.S3267.severity = none
+
+# S1118: Utility classes should not have public constructors
+dotnet_diagnostic.S1118.severity = none
+

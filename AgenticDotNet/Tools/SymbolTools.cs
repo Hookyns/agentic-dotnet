@@ -1,12 +1,12 @@
 using System.ComponentModel;
 using System.Text.Json;
+using AgenticDotNet.Services;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.Rename;
 using ModelContextProtocol.Server;
-using RoslynMcpServer.Services;
 
-namespace RoslynMcpServer.Tools;
+namespace AgenticDotNet.Tools;
 
 [McpServerToolType]
 public sealed class SymbolTools(WorkspaceService workspace)
