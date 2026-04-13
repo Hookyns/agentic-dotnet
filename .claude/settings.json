@@ -16,5 +16,22 @@
 	},
 	"enabledMcpjsonServers": [
 		"agentic-dotnet"
-	]
+	],
+	"hooks": {
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "dotnet csharpier format ."
+					},
+					{
+						"type": "command",
+						"command": "dotnet build Agentic.Dotnet.slnx"
+					}
+				]
+			}
+		]
+	}
 }
