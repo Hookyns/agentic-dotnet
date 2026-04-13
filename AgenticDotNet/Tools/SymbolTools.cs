@@ -295,8 +295,12 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 			foreach (var docId in projectChanges.GetChangedDocuments())
 			{
 				var doc = changed.GetDocument(docId);
+
 				if (doc?.FilePath is null)
+				{
 					continue;
+				}
+
 				var text = await doc.GetTextAsync(ct);
 				await File.WriteAllTextAsync(doc.FilePath, text.ToString(), ct);
 				paths.Add(doc.FilePath);
