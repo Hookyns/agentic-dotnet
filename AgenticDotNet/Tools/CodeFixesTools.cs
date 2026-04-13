@@ -6,7 +6,6 @@ using AgenticDotNet.Services;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Microsoft.CodeAnalysis.Diagnostics;
 using ModelContextProtocol.Server;
 
 namespace AgenticDotNet.Tools;
@@ -30,23 +29,30 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 	)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
-		var document = FindDocumentInSolution(solution, filePath);
+		var document = solution.FindDocument(filePath);
 		if (document is null)
+		{
 			return $"File not found in solution: {filePath}";
+		}
 
 		var project = document.Project;
 		var compilation = await project.GetCompilationAsync(cancellationToken);
 		if (compilation is null)
+		{
 			return "Could not compile project.";
+		}
 
 		var tree = await document.GetSyntaxTreeAsync(cancellationToken);
-		var allDiagnostics = await GetFileDiagnosticsAsync(project, compilation, tree, cancellationToken);
-		var diagnostics = allDiagnostics
-			.Where(d => d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
+		var diagnostics = (await project.GetDiagnosticsAsync(compilation, cancellationToken))
+			.Where(d =>
+				d.Location.SourceTree == tree && d.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning
+			)
 			.ToImmutableArray();
 
 		if (diagnostics.IsEmpty)
+		{
 			return "No errors or warnings in file — no code fixes available.";
+		}
 
 		var providers = GetCodeFixProviders();
 		var results = new List<object>();
@@ -68,9 +74,12 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 				{
 					await provider.RegisterCodeFixesAsync(ctx);
 				}
+#pragma warning disable CA1031
 				catch
-				{ /* provider may fail for unsupported scenarios */
+				{
+					// provider may fail for unsupported scenarios
 				}
+#pragma warning restore CA1031
 			}
 
 			var span = diag.Location.GetLineSpan();
@@ -104,21 +113,28 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 	)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
-		var document = FindDocumentInSolution(solution, filePath);
+		var document = solution.FindDocument(filePath);
 		if (document is null)
+		{
 			return $"File not found in solution: {filePath}";
+		}
 
 		var project = document.Project;
 		var compilation = await project.GetCompilationAsync(cancellationToken);
 		if (compilation is null)
+		{
 			return "Could not compile project.";
+		}
 
 		var tree = await document.GetSyntaxTreeAsync(cancellationToken);
-		var allDiagnostics = await GetFileDiagnosticsAsync(project, compilation, tree, cancellationToken);
-		var diagnostic = allDiagnostics.FirstOrDefault(d => d.Id == diagnosticId);
+		var diagnostic = (await project.GetDiagnosticsAsync(compilation, cancellationToken)).FirstOrDefault(d =>
+			d.Location.SourceTree == tree && d.Id == diagnosticId
+		);
 
 		if (diagnostic is null)
+		{
 			return $"Diagnostic '{diagnosticId}' not found in '{filePath}'.";
+		}
 
 		var providers = GetCodeFixProviders().Where(p => p.FixableDiagnosticIds.Contains(diagnosticId));
 
@@ -132,7 +148,9 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 				(action, _) =>
 				{
 					if (matched is null)
+					{
 						FindAction(action, fixTitle, ref matched);
+					}
 				},
 				cancellationToken
 			);
@@ -141,21 +159,27 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 			{
 				await provider.RegisterCodeFixesAsync(ctx);
 			}
+#pragma warning disable CA1031
 			catch
+#pragma warning restore CA1031
 			{
 				continue;
 			}
 
 			if (matched is null)
+			{
 				continue;
+			}
 
 			var operations = await matched.GetOperationsAsync(cancellationToken);
 			var changedSolution = operations.OfType<ApplyChangesOperation>().FirstOrDefault()?.ChangedSolution;
 
 			if (changedSolution is null)
+			{
 				continue;
+			}
 
-			var changedFiles = await WriteChangedDocumentsAsync(solution, changedSolution, cancellationToken);
+			var changedFiles = await solution.WriteChangedDocumentsAsync(changedSolution, cancellationToken);
 
 			return JsonSerializer.Serialize(
 				new
@@ -178,16 +202,23 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 	{
 		var nested = action.NestedActions;
 		if (nested.IsEmpty)
+		{
 			titles.Add(action.Title);
+		}
 		else
+		{
 			foreach (var child in nested)
 				CollectTitles(child, titles);
+		}
 	}
 
 	private static void FindAction(CodeAction action, string title, ref CodeAction? result)
 	{
 		if (result is not null)
+		{
 			return;
+		}
+
 		if (action.Title == title)
 		{
 			result = action;
@@ -197,59 +228,12 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 			FindAction(child, title, ref result);
 	}
 
-	private static async Task<string[]> WriteChangedDocumentsAsync(
-		Solution original,
-		Solution changed,
-		CancellationToken ct
-	)
-	{
-		var paths = new List<string>();
-		foreach (var projectChanges in changed.GetChanges(original).GetProjectChanges())
-		{
-			foreach (var docId in projectChanges.GetChangedDocuments())
-			{
-				var doc = changed.GetDocument(docId);
-				if (doc?.FilePath is null)
-					continue;
-				var text = await doc.GetTextAsync(ct);
-				var encoding = text.Encoding ?? new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-				await File.WriteAllTextAsync(doc.FilePath, text.ToString(), encoding, ct);
-				paths.Add(doc.FilePath);
-			}
-		}
-		return [.. paths];
-	}
-
-	/// <summary>
-	/// Returns all diagnostics for a specific syntax tree, including both compiler
-	/// and analyzer diagnostics. Respects .editorconfig via project.AnalyzerOptions.
-	/// </summary>
-	private static async Task<IEnumerable<Diagnostic>> GetFileDiagnosticsAsync(
-		Project project,
-		Compilation compilation,
-		SyntaxTree? tree,
-		CancellationToken ct
-	)
-	{
-		var compilerDiagnostics = compilation.GetDiagnostics(ct).Where(d => d.Location.SourceTree == tree);
-
-		var analyzers = project.AnalyzerReferences.SelectMany(r => r.GetAnalyzers(project.Language)).ToImmutableArray();
-
-		if (analyzers.IsEmpty)
-			return compilerDiagnostics;
-
-		var withAnalyzers = compilation.WithAnalyzers(analyzers, project.AnalyzerOptions);
-		var analyzerDiagnostics = (await withAnalyzers.GetAnalyzerDiagnosticsAsync(ct)).Where(d =>
-			d.Location.SourceTree == tree
-		);
-
-		return compilerDiagnostics.Concat(analyzerDiagnostics);
-	}
-
 	private static IReadOnlyList<CodeFixProvider> GetCodeFixProviders()
 	{
 		if (_sProviders is not null)
+		{
 			return _sProviders;
+		}
 
 		var result = new List<CodeFixProvider>();
 		var baseType = typeof(CodeFixProvider);
@@ -258,14 +242,18 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 		{
 			var name = assembly.GetName().Name ?? string.Empty;
 			if (!name.Contains("CodeAnalysis", StringComparison.OrdinalIgnoreCase))
+			{
 				continue;
+			}
 
 			Type[] types;
 			try
 			{
 				types = assembly.GetTypes();
 			}
+#pragma warning disable CA1031
 			catch
+#pragma warning restore CA1031
 			{
 				continue;
 			}
@@ -273,14 +261,22 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 			foreach (var type in types)
 			{
 				if (type.IsAbstract || !baseType.IsAssignableFrom(type))
+				{
 					continue;
+				}
+
 				try
 				{
 					if (Activator.CreateInstance(type) is CodeFixProvider p)
+					{
 						result.Add(p);
+					}
 				}
+#pragma warning disable CA1031
 				catch
-				{ /* provider requires constructor args — skip */
+#pragma warning restore CA1031
+				{
+					// provider requires constructor args — skip
 				}
 			}
 		}
@@ -288,9 +284,4 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 		_sProviders = result;
 		return result;
 	}
-
-	private static Document? FindDocumentInSolution(Solution solution, string filePath) =>
-		solution
-			.Projects.SelectMany(p => p.Documents)
-			.FirstOrDefault(d => string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
 }

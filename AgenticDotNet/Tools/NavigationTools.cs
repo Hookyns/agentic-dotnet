@@ -43,15 +43,17 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 	{
 		var project = await ResolveProjectAsync(projectName, cancellationToken);
 		if (project is null)
+		{
 			return NotFoundMessage("Project", projectName, "get_solution_projects");
+		}
 
 		var compilation = await project.GetCompilationAsync(cancellationToken);
 		if (compilation is null)
+		{
 			return "Could not compile project.";
+		}
 
-		var sourcePaths = compilation.SyntaxTrees
-			.Select(t => t.FilePath)
-			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+		var sourcePaths = compilation.SyntaxTrees.Select(t => t.FilePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
 		var namespaces = new SortedSet<string>();
 		CollectNamespaces(compilation.GlobalNamespace, namespaces, sourcePaths);
@@ -72,15 +74,21 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 	{
 		var project = await ResolveProjectAsync(projectName, cancellationToken);
 		if (project is null)
+		{
 			return NotFoundMessage("Project", projectName, "get_solution_projects");
+		}
 
 		var compilation = await project.GetCompilationAsync(cancellationToken);
 		if (compilation is null)
+		{
 			return "Could not compile project.";
+		}
 
 		var ns = ResolveNamespace(compilation.GlobalNamespace, namespaceName);
 		if (ns is null)
+		{
 			return $"Namespace '{namespaceName}' not found in project '{projectName}'. Use get_project_namespaces to list available namespaces.";
+		}
 
 		var types = ns.GetTypeMembers()
 			.Select(t => new
@@ -99,7 +107,9 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 			.ToList();
 
 		if (types.Count == 0)
+		{
 			return $"No types declared directly in namespace '{namespaceName}'.";
+		}
 
 		return JsonSerializer.Serialize(types, JsonOptions.Options);
 	}
@@ -120,18 +130,12 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 	)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
-
-		INamedTypeSymbol? type = null;
-		foreach (var project in solution.Projects)
-		{
-			var compilation = await project.GetCompilationAsync(cancellationToken);
-			type = compilation?.GetTypeByMetadataName(typeFullName);
-			if (type is not null)
-				break;
-		}
+		var type = await solution.FindTypeAsync(typeFullName, cancellationToken);
 
 		if (type is null)
+		{
 			return $"Type '{typeFullName}' not found in solution.";
+		}
 
 		var info = new
 		{
@@ -228,8 +232,11 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 
 	private static void CollectNamespaces(INamespaceSymbol ns, SortedSet<string> result, HashSet<string> sourcePaths)
 	{
-		if (!ns.IsGlobalNamespace && ns.GetTypeMembers().Any(t =>
-			t.Locations.Any(l => l.IsInSource && sourcePaths.Contains(l.SourceTree?.FilePath ?? ""))))
+		if (
+			!ns.IsGlobalNamespace
+			&& ns.GetTypeMembers()
+				.Any(t => t.Locations.Any(l => l.IsInSource && sourcePaths.Contains(l.SourceTree?.FilePath ?? "")))
+		)
 		{
 			result.Add(ns.ToDisplayString());
 		}
@@ -246,7 +253,9 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 				.GetNamespaceMembers()
 				.FirstOrDefault(n => string.Equals(n.Name, part, StringComparison.Ordinal));
 			if (current is null)
+			{
 				return null;
+			}
 		}
 		return current;
 	}
@@ -291,33 +300,44 @@ internal sealed class NavigationTools(WorkspaceService workspace)
 			.ToArray();
 
 	private static object[] FormatAttributes(System.Collections.Immutable.ImmutableArray<AttributeData> attrs) =>
-		attrs.Select(a => new
-			{
-				Name = a.AttributeClass?.ToDisplayString(),
-				ConstructorArguments = a.ConstructorArguments
-					.Select(arg => arg.Kind == TypedConstantKind.Array
-						? (object?)arg.Values.Select(v => v.Value).ToArray()
-						: arg.Value)
-					.ToArray(),
-				NamedArguments = a.NamedArguments.ToDictionary(kv => kv.Key, kv => kv.Value.Value),
-			} as object)
-		.ToArray();
+		attrs
+			.Select(a =>
+				new
+				{
+					Name = a.AttributeClass?.ToDisplayString(),
+					ConstructorArguments = a
+						.ConstructorArguments.Select(arg =>
+							arg.Kind == TypedConstantKind.Array
+								? (object?)arg.Values.Select(v => v.Value).ToArray()
+								: arg.Value
+						)
+						.ToArray(),
+					NamedArguments = a.NamedArguments.ToDictionary(kv => kv.Key, kv => kv.Value.Value),
+				} as object
+			)
+			.ToArray();
 
 	private static string BuildAccessorString(IPropertySymbol p)
 	{
 		var parts = new List<string>();
 		if (p.GetMethod is not null)
+		{
 			parts.Add(
 				p.GetMethod.DeclaredAccessibility == p.DeclaredAccessibility
 					? "get"
 					: $"{p.GetMethod.DeclaredAccessibility.ToString().ToLower()} get"
 			);
+		}
+
 		if (p.SetMethod is not null)
+		{
 			parts.Add(
 				p.SetMethod.DeclaredAccessibility == p.DeclaredAccessibility
 					? "set"
 					: $"{p.SetMethod.DeclaredAccessibility.ToString().ToLower()} set"
 			);
+		}
+
 		return string.Join("; ", parts) + ";";
 	}
 

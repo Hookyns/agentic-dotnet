@@ -1,9 +1,9 @@
 <Solution>
-  <Folder Name="/Solution Items/">
-    <File Path=".editorconfig" />
-    <File Path=".mcp.json" />
-    <File Path="LICENSE" />
-    <File Path="README.md" />
-  </Folder>
-  <Project Path="AgenticDotNet/AgenticDotNet.csproj" />
+	<Folder Name="/Solution Items/">
+		<File Path=".editorconfig" />
+		<File Path=".mcp.json" />
+		<File Path="LICENSE" />
+		<File Path="README.md" />
+	</Folder>
+	<Project Path="AgenticDotNet/AgenticDotNet.csproj" />
 </Solution>

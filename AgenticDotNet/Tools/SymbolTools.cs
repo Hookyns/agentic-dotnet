@@ -75,9 +75,11 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 			.ToList();
 
 		if (results.Count == 0)
+		{
 			return kind is not null
 				? $"No {kind} symbols matching '{name}' found."
 				: $"No symbols matching '{name}' found.";
+		}
 
 		return JsonSerializer.Serialize(results, JsonOptions.Options);
 	}
@@ -97,17 +99,23 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
 
-		var document = FindDocument(solution, filePath);
+		var document = solution.FindDocument(filePath);
 		if (document is null)
+		{
 			return $"File not found in solution: {filePath}";
+		}
 
 		var symbol = await FindSymbolAtAsync(document, line, column, cancellationToken);
 		if (symbol is null)
+		{
 			return $"No symbol found at line {line}, column {column} in '{filePath}'.";
+		}
 
 		var oldName = symbol.Name;
 		if (oldName == newName)
+		{
 			return $"Symbol is already named '{newName}'.";
+		}
 
 		var options = new SymbolRenameOptions(
 			RenameOverloads: false,
@@ -126,7 +134,7 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 			return $"Rename failed: {ex.Message}";
 		}
 
-		var changedFiles = await WriteChangedDocumentsAsync(solution, renamedSolution, cancellationToken);
+		var changedFiles = await solution.WriteChangedDocumentsAsync(renamedSolution, cancellationToken);
 
 		return JsonSerializer.Serialize(
 			new
@@ -155,9 +163,11 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
 
-		var type = await FindTypeAsync(solution, typeFullName, cancellationToken);
+		var type = await solution.FindTypeAsync(typeFullName, cancellationToken);
 		if (type is null)
+		{
 			return $"Type '{typeFullName}' not found in solution.";
+		}
 
 		var all = new Dictionary<string, object>();
 
@@ -183,7 +193,9 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 			AddResult(all, d);
 
 		if (all.Count == 0)
+		{
 			return $"No implementations or derived types found for '{typeFullName}'.";
+		}
 
 		return JsonSerializer.Serialize(all.Values.ToList(), JsonOptions.Options);
 	}
@@ -199,19 +211,25 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 	{
 		var solution = await workspace.GetSolutionAsync(cancellationToken);
 
-		var type = await FindTypeAsync(solution, typeFullName, cancellationToken);
+		var type = await solution.FindTypeAsync(typeFullName, cancellationToken);
 		if (type is null)
+		{
 			return $"Type '{typeFullName}' not found in solution.";
+		}
 
 		var method = type.GetMembers(methodName)
 			.OfType<IMethodSymbol>()
 			.FirstOrDefault(m => m.MethodKind == MethodKind.Ordinary);
 
 		if (method is null)
+		{
 			return $"Method '{methodName}' not found in '{typeFullName}'.";
+		}
 
 		if (!method.IsVirtual && !method.IsAbstract && !method.IsOverride)
+		{
 			return $"Method '{typeFullName}.{methodName}' is not virtual, abstract, or an override — no overrides can exist.";
+		}
 
 		var overrides = await SymbolFinder.FindOverridesAsync(method, solution, cancellationToken: cancellationToken);
 
@@ -235,7 +253,9 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 			.ToList();
 
 		if (results.Count == 0)
+		{
 			return $"No overrides found for '{typeFullName}.{methodName}'.";
+		}
 
 		return JsonSerializer.Serialize(results, JsonOptions.Options);
 	}
@@ -246,7 +266,9 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 	{
 		var text = await document.GetTextAsync(ct);
 		if (line < 1 || line > text.Lines.Count)
+		{
 			return null;
+		}
 
 		var lineStart = text.Lines[line - 1].Start;
 		var position = lineStart + Math.Max(0, column - 1);
@@ -254,66 +276,24 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 		var semanticModel = await document.GetSemanticModelAsync(ct);
 		var root = await document.GetSyntaxRootAsync(ct);
 		if (semanticModel is null || root is null)
+		{
 			return null;
+		}
 
 		var token = root.FindToken(position);
 		if (token.RawKind == 0)
+		{
 			return null;
+		}
 
 		var node = token.Parent;
 		if (node is null)
+		{
 			return null;
+		}
 
 		return semanticModel.GetSymbolInfo(node, ct).Symbol ?? semanticModel.GetDeclaredSymbol(node, ct);
 	}
-
-	private static async Task<INamedTypeSymbol?> FindTypeAsync(
-		Solution solution,
-		string typeFullName,
-		CancellationToken ct
-	)
-	{
-		foreach (var project in solution.Projects)
-		{
-			var compilation = await project.GetCompilationAsync(ct);
-			var symbol = compilation?.GetTypeByMetadataName(typeFullName);
-			if (symbol is not null)
-				return symbol;
-		}
-		return null;
-	}
-
-	private static async Task<string[]> WriteChangedDocumentsAsync(
-		Solution original,
-		Solution changed,
-		CancellationToken ct
-	)
-	{
-		var paths = new List<string>();
-		foreach (var projectChanges in changed.GetChanges(original).GetProjectChanges())
-		{
-			foreach (var docId in projectChanges.GetChangedDocuments())
-			{
-				var doc = changed.GetDocument(docId);
-
-				if (doc?.FilePath is null)
-				{
-					continue;
-				}
-
-				var text = await doc.GetTextAsync(ct);
-				var encoding = text.Encoding ?? new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-				await File.WriteAllTextAsync(doc.FilePath, text.ToString(), encoding, ct);
-				paths.Add(doc.FilePath);
-			}
-		}
-		return [.. paths];
-	}
-
-	private static Document? FindDocument(Solution solution, string filePath) =>
-		solution
-			.Projects.SelectMany(p => p.Documents)
-			.FirstOrDefault(d => string.Equals(d.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
 
 	private static bool MatchesKind(ISymbol symbol, string kind) =>
 		kind.ToLowerInvariant() switch
@@ -346,7 +326,9 @@ internal sealed class SymbolTools(WorkspaceService workspace)
 	{
 		var key = symbol.ToDisplayString();
 		if (map.ContainsKey(key))
+		{
 			return;
+		}
 
 		var loc = symbol.Locations.FirstOrDefault(l => l.IsInSource);
 		var span = loc?.GetLineSpan();
