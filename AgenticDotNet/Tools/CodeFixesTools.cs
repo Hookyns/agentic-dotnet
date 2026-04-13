@@ -212,7 +212,8 @@ internal sealed class CodeFixesTools(WorkspaceService workspace)
 				if (doc?.FilePath is null)
 					continue;
 				var text = await doc.GetTextAsync(ct);
-				await File.WriteAllTextAsync(doc.FilePath, text.ToString(), ct);
+				var encoding = text.Encoding ?? new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+				await File.WriteAllTextAsync(doc.FilePath, text.ToString(), encoding, ct);
 				paths.Add(doc.FilePath);
 			}
 		}
