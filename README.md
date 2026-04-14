@@ -1,5 +1,7 @@
 # Agentic .NET MCP (AgenticDotNet)
 
+<a href="https://www.nuget.org/packages/AgenticDotNet"><img src="https://img.shields.io/nuget/v/AgenticDotNet?color=%230063B0" alt="NuGet Version" /></a>
+
 A Roslyn-powered [MCP](https://modelcontextprotocol.io) server that gives AI agents semantic understanding of a .NET solution — diagnostics, navigation, symbol search, and automated code fixes — backed by the same compiler pipeline used by Visual Studio and Rider.
 
 ## Installation
